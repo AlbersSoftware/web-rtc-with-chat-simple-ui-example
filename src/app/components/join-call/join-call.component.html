@@ -1,0 +1,22 @@
+<h2>Join Call</h2>
+
+<mat-form-field>
+  <input matInput placeholder="Room ID" [(ngModel)]="roomId" />
+</mat-form-field>
+
+<mat-form-field>
+  <input matInput placeholder="Client ID" [(ngModel)]="clientId" />
+</mat-form-field>
+
+<button 
+  mat-raised-button 
+  color="primary" 
+  (click)="join()"
+  [disabled]="!roomId.trim() || !clientId.trim()"
+>
+  Enter Room
+</button>
+
+<button mat-button (click)="goHome()">
+  Back Home
+</button>

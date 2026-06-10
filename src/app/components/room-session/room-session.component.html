@@ -1,0 +1,46 @@
+<h2>Room Session</h2>
+
+<p><strong>Room:</strong> {{ roomId }}</p>
+
+<div class="room-layout">
+
+  <!-- VIDEO AREA -->
+  <div class="video-section">
+
+    <!-- LOCAL -->
+    <div class="main-video">
+      <video #localVideo autoplay muted playsinline></video>
+      <span>You ({{ clientId }})</span>
+    </div>
+
+<div class="side-videos">
+
+  <div class="side-video" *ngFor="let v of remoteVideos">
+
+    <video
+      #remoteVideo
+      autoplay
+      playsinline>
+    </video>
+
+    <span>{{ v.id }}</span>
+
+  </div>
+
+</div>
+
+  <!-- CHAT -->
+  <div class="chat-container">
+
+    <div class="messages">
+      <div *ngFor="let msg of messages">
+        <strong>{{ msg.senderId }}:</strong> {{ msg.payload }}
+      </div>
+    </div>
+
+    <input [(ngModel)]="message" (keyup.enter)="sendMessage()" />
+    <button mat-raised-button (click)="sendMessage()">Send</button>
+
+  </div>
+
+</div>

@@ -1,0 +1,84 @@
+.room-layout {
+  display: flex;
+  gap: 20px;
+}
+
+/* VIDEO SECTION */
+.video-section {
+  display: flex;
+  flex: 2;
+}
+
+/* MAIN VIDEO (CENTER) */
+.main-video {
+  position: relative;
+  flex: 3;
+}
+
+.main-video video {
+  width: 100%;
+  height: 400px;
+  background: black;
+  border-radius: 10px;
+}
+
+/* SIDE COLUMN */
+.side-videos {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-left: 10px;
+}
+
+/* SMALL VIDEOS */
+.side-video {
+  position: relative;
+}
+
+.side-video video {
+  width: 120px;
+  height: 90px;
+  background: black;
+  border-radius: 6px;
+}
+
+/* LABEL (user id overlay) */
+.label {
+  position: absolute;
+  bottom: 5px;
+  left: 5px;
+  font-size: 12px;
+  color: white;
+  background: rgba(0,0,0,0.6);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* CHAT */
+.chat-container {
+  flex: 1;
+  border: 1px solid #ccc;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 10px;
+}
+
+.chat-input {
+  display: flex;
+  gap: 10px;
+}
+
+/* FOOTER */
+.footer {
+  margin-top: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
