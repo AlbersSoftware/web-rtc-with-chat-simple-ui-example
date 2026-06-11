@@ -1,46 +1,99 @@
-<h2>Room Session</h2>
+<!-- TOOLBAR -->
+<mat-toolbar color="primary" class="room-toolbar">
+  <span class="toolbar-title">
+    <mat-icon>videocam</mat-icon>
+    Room {{ roomId }}
+  </span>
+  <span class="toolbar-spacer"></span>
+  <span class="you-label" *ngIf="clientId">
+    <mat-icon>person</mat-icon>
+    {{ clientId | slice:0:8 }}…
+  </span>
+  <button mat-stroked-button color="warn" (click)="goHome()" class="leave-btn">
+    <mat-icon>call_end</mat-icon>
+    Leave
+  </button>
+</mat-toolbar>
 
-<p><strong>Room:</strong> {{ roomId }}</p>
+<!-- MAIN LAYOUT -->
+<div class="room-root">
 
-<button mat-raised-button color="warn" (click)="goHome()">
-  Leave Room
-</button>
+  <!-- VIDEO ROW: local main + remote sidebar -->
+  <div class="video-row">
 
-<div class="room-layout">
+    <!-- LOCAL VIDEO (main) -->
+    <mat-card class="main-card">
+      <video #localVideo autoplay muted playsinline class="main-video"></video>
+      <div class="video-label">
+        <mat-icon class="label-icon">person</mat-icon>
+        <span>You</span>
+      </div>
+    </mat-card>
 
-  <!-- LOCAL -->
-  <div class="main-video">
-    <video #localVideo autoplay muted playsinline></video>
-    <span>You ({{ clientId }})</span>
-  </div>
+    <!-- REMOTE SIDEBAR: one card per peer, stacked vertically -->
+    <div class="side-column">
+      <mat-card
+        class="side-card"
+        *ngFor="let v of remoteVideos; trackBy: trackByUserId">
+        <video
+          #remoteVideo
+          [attr.data-id]="v.id"
+          autoplay
+          playsinline
+          class="side-video">
+        </video>
+        <div class="video-label side-label">
+          <mat-icon class="label-icon">person_outline</mat-icon>
+          <!-- truncate id so it never wraps -->
+          <span class="peer-id">{{ v.id | slice:0:8 }}…</span>
+        </div>
+      </mat-card>
 
-  <!-- REMOTE -->
-  <div class="side-video"
-       *ngFor="let v of remoteVideos; trackBy: trackByUserId">
-
-    <video
-      #remoteVideo
-      [attr.data-id]="v.id"
-      autoplay
-      playsinline>
-    </video>
-
-    <span>{{ v.id }}</span>
-
-  </div>
-
-  <!-- CHAT -->
-  <div class="chat-container">
-
-    <div class="messages">
-      <div *ngFor="let msg of messages">
-        <strong>{{ msg.senderId }}:</strong> {{ msg.payload }}
+      <!-- Placeholder shown when no remote peers yet -->
+      <div class="no-peers" *ngIf="remoteVideos.length === 0">
+        <mat-icon>group</mat-icon>
+        <p>Waiting for others…</p>
       </div>
     </div>
 
-    <input [(ngModel)]="message" (keyup.enter)="sendMessage()" />
-    <button mat-raised-button (click)="sendMessage()">Send</button>
+  </div><!-- /video-row -->
 
-  </div>
+  <!-- CHAT PANEL (below videos) -->
+  <mat-card class="chat-card">
+    <mat-card-header>
+      <mat-card-title>
+        <mat-icon>chat_bubble_outline</mat-icon>
+        Chat
+      </mat-card-title>
+    </mat-card-header>
 
-</div>
+    <mat-card-content class="chat-body">
+      <div class="messages" #messageList>
+        <div
+          *ngFor="let msg of messages"
+          class="message-row">
+          <span class="msg-sender">{{ msg.senderId | slice:0:8 }}…</span>
+          <span class="msg-text">{{ msg.payload }}</span>
+        </div>
+        <div *ngIf="messages.length === 0" class="no-messages">
+          No messages yet. Say hello!
+        </div>
+      </div>
+    </mat-card-content>
+
+    <mat-card-actions class="chat-actions">
+      <mat-form-field appearance="outline" class="chat-input-field">
+        <input
+          matInput
+          [(ngModel)]="message"
+          (keyup.enter)="sendMessage()"
+          placeholder="Type a message…" />
+      </mat-form-field>
+      <button mat-flat-button color="primary" (click)="sendMessage()">
+        <mat-icon>send</mat-icon>
+        Send
+      </button>
+    </mat-card-actions>
+  </mat-card><!-- /chat-card -->
+
+</div><!-- /room-root -->

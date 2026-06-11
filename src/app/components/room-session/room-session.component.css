@@ -1,84 +1,236 @@
-.room-layout {
+/* =====================================================
+   TOOLBAR
+   ===================================================== */
+.room-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  gap: 12px;
+}
+
+.toolbar-title {
   display: flex;
-  gap: 20px;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
 }
 
-/* VIDEO SECTION */
-.video-section {
-  display: flex;
-  flex: 2;
-}
-
-/* MAIN VIDEO (CENTER) */
-.main-video {
-  position: relative;
-  flex: 3;
-}
-
-.main-video video {
-  width: 100%;
-  height: 400px;
-  background: black;
-  border-radius: 10px;
-}
-
-/* SIDE COLUMN */
-.side-videos {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-left: 10px;
-}
-
-/* SMALL VIDEOS */
-.side-video {
-  position: relative;
-}
-
-.side-video video {
-  width: 120px;
-  height: 90px;
-  background: black;
-  border-radius: 6px;
-}
-
-/* LABEL (user id overlay) */
-.label {
-  position: absolute;
-  bottom: 5px;
-  left: 5px;
-  font-size: 12px;
-  color: white;
-  background: rgba(0,0,0,0.6);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-/* CHAT */
-.chat-container {
+.toolbar-spacer {
   flex: 1;
-  border: 1px solid #ccc;
-  padding: 10px;
+}
+
+.you-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  opacity: 0.85;
+  font-family: monospace;
+}
+
+.leave-btn {
+  margin-left: 8px;
+}
+
+/* =====================================================
+   PAGE ROOT
+   ===================================================== */
+.room-root {
   display: flex;
   flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  max-width: 1280px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* =====================================================
+   VIDEO ROW  (main left + sidebar right)
+   ===================================================== */
+.video-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+/* ── MAIN VIDEO CARD ── */
+.main-card {
+  flex: 1;
+  min-width: 0;       /* allow shrink */
+  padding: 0 !important;
+  overflow: hidden;
+  position: relative;
+  background: #000;
+  border-radius: 10px !important;
+}
+
+.main-video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #111;
+  object-fit: cover;
+}
+
+/* ── SIDE COLUMN ── */
+.side-column {
+  display: flex;
+  flex-direction: column;  /* one card per line, stacked */
+  gap: 10px;
+  width: 148px;
+  flex-shrink: 0;
+}
+
+.side-card {
+  padding: 0 !important;
+  overflow: hidden;
+  position: relative;
+  background: #000;
+  border-radius: 8px !important;
+}
+
+.side-video {
+  display: block;
+  width: 148px;
+  height: 111px;          /* 4:3 keeps faces recognisable */
+  background: #111;
+  object-fit: cover;
+}
+
+/* ── VIDEO LABEL (overlay) ── */
+.video-label {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 0.7rem;
+  font-family: monospace;
+  padding: 2px 7px;
+  border-radius: 4px;
+  /* never let label wrap or overflow its card */
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: calc(100% - 12px);
+}
+
+.side-label {
+  font-size: 0.65rem;
+}
+
+.label-icon {
+  font-size: 0.85rem;
+  width: 0.85rem;
+  height: 0.85rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* peer id: truncate with ellipsis, never wrap */
+.peer-id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── NO PEERS PLACEHOLDER ── */
+.no-peers {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 148px;
+  height: 111px;
+  border: 2px dashed rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  color: rgba(0, 0, 0, 0.38);
+  text-align: center;
+  gap: 4px;
+}
+
+.no-peers p {
+  margin: 0;
+  font-size: 0.7rem;
+  line-height: 1.3;
+}
+
+/* =====================================================
+   CHAT PANEL (below videos)
+   ===================================================== */
+.chat-card {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.chat-card mat-card-header {
+  padding-bottom: 0;
+}
+
+.chat-card mat-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 1rem;
+}
+
+/* scrollable message list */
+.chat-body {
+  padding: 8px 16px !important;
 }
 
 .messages {
-  flex: 1;
+  height: 180px;
   overflow-y: auto;
-  border-bottom: 1px solid #ddd;
-  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0;
 }
 
-.chat-input {
+.message-row {
   display: flex;
-  gap: 10px;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 0.875rem;
+  line-height: 1.4;
 }
 
-/* FOOTER */
-.footer {
-  margin-top: 15px;
-  display: flex;
-  justify-content: space-between;
+.msg-sender {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: var(--mdc-theme-primary, #6200ea);
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.msg-text {
+  color: rgba(0, 0, 0, 0.87);
+  word-break: break-word;
+}
+
+.no-messages {
+  color: rgba(0, 0, 0, 0.38);
+  font-size: 0.8rem;
+  text-align: center;
+  margin-top: 40px;
+}
+
+/* input + button row */
+.chat-actions {
+  display: flex !important;
   align-items: center;
+  gap: 8px;
+  padding: 8px 16px 16px !important;
+}
+
+.chat-input-field {
+  flex: 1;
+  /* remove default bottom margin that mat-form-field adds */
+  margin-bottom: -1.25em;
 }
