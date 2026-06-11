@@ -3,6 +3,13 @@ import { Injectable } from '@angular/core';
 type PeerEntry = {
   pc: RTCPeerConnection;
   stream?: MediaStream;
+
+  makingOffer: boolean;
+  isSettingRemote: boolean;
+  ignoreOffer: boolean;
+
+  polite: boolean;
+  iceCandidateBuffer: RTCIceCandidateInit[];
 };
 
 @Injectable({ providedIn: 'root' })
@@ -12,9 +19,12 @@ export class WebrtcService {
 
   peers: Map<string, PeerEntry> = new Map();
 
-  // callback for UI updates
   onRemoteStream?: (userId: string, stream: MediaStream) => void;
+  onPeerLeft?: (userId: string) => void;
 
+  // =========================
+  // LOCAL STREAM
+  // =========================
   async initLocalStream(): Promise<MediaStream> {
 
     this.localStream = await navigator.mediaDevices.getUserMedia({
@@ -22,89 +32,244 @@ export class WebrtcService {
       audio: true
     });
 
+    console.log('[LOCAL STREAM READY]');
     return this.localStream;
   }
 
-  // =====================================================
-  // CREATE PEER CONNECTION
-  // =====================================================
-  createPeer(userId: string) {
+  // =========================
+  // CREATE PEER
+  // =========================
+  createPeer(userId: string, polite: boolean = false) {
 
-    if (this.peers.has(userId)) return this.peers.get(userId)!.pc;
+    let entry = this.peers.get(userId);
+
+    if (entry) {
+      entry.polite = polite;
+      return entry.pc;
+    }
 
     const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' }
-      ]
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     });
 
-    // add local tracks
-    this.localStream.getTracks().forEach(track => {
+    entry = {
+      pc,
+      makingOffer: false,
+      isSettingRemote: false,
+      ignoreOffer: false,
+      polite,
+      iceCandidateBuffer: []
+    };
+
+    this.peers.set(userId, entry);
+
+    this.localStream?.getTracks().forEach(track => {
       pc.addTrack(track, this.localStream);
     });
 
-    // receive remote stream
+    // =========================
+    // REMOTE STREAM
+    // =========================
     pc.ontrack = (event) => {
-      const stream = event.streams[0];
 
-      this.peers.get(userId)!.stream = stream;
+      // ontrack fires once per track (audio then video).
+      // We only call onRemoteStream when the VIDEO track arrives —
+      // that's the moment the stream is actually renderable.
+      // Checking event.track.kind is reliable; checking stream.getVideoTracks()
+      // is NOT because the stream object may already contain both tracks
+      // even on the first (audio) event.
+      if (event.track.kind !== 'video') {
+        console.log('[REMOTE STREAM] audio track received — waiting for video track');
+        return;
+      }
+
+      const stream = event.streams?.[0] ?? new MediaStream([event.track]);
+      const e = this.peers.get(userId);
+      if (e) e.stream = stream;
+
+      console.log('[REMOTE STREAM] video track ready for', userId,
+        '| stream id:', stream.id,
+        '| total tracks:', stream.getTracks().length
+      );
 
       this.onRemoteStream?.(userId, stream);
     };
 
+    // =========================
     // ICE
+    // =========================
     pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        window.dispatchEvent(new CustomEvent('webrtc-ice', {
-          detail: { userId, candidate: event.candidate }
-        }));
-      }
+
+      if (!event.candidate) return;
+
+      window.dispatchEvent(new CustomEvent('webrtc-ice', {
+        detail: { userId, candidate: event.candidate }
+      }));
     };
 
-    this.peers.set(userId, { pc });
+    // =========================
+    // CONNECTION STATE
+    // =========================
+    pc.onconnectionstatechange = () => {
+
+      console.log('[CONNECTION STATE]', userId, pc.connectionState);
+
+      const e = this.peers.get(userId);
+      if (!e) return;
+
+      if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        this.removePeer(userId);
+      }
+    };
 
     return pc;
   }
 
-  // =====================================================
-  // OFFER (caller)
-  // =====================================================
-  async createOffer(userId: string) {
+  // =========================
+  // OFFER (caller — impolite)
+  // =========================
+  async createOffer(userId: string, polite: boolean = false) {
 
-    const pc = this.createPeer(userId);
+    const pc = this.createPeer(userId, polite);
+    const entry = this.peers.get(userId)!;
 
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
+    if (entry.makingOffer) return null;
 
-    return offer;
+    entry.makingOffer = true;
+
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      return offer;
+    } finally {
+      entry.makingOffer = false;
+    }
   }
 
-  // =====================================================
-  // ANSWER (receiver)
-  // =====================================================
-  async handleOffer(userId: string, offer: RTCSessionDescriptionInit) {
+  // =========================
+  // HANDLE OFFER (receiver — polite)
+  // =========================
+  async handleOffer(userId: string, offer: RTCSessionDescriptionInit, polite: boolean = false) {
 
-    const pc = this.createPeer(userId);
+    const pc = this.createPeer(userId, polite);
+    const entry = this.peers.get(userId)!;
 
-    await pc.setRemoteDescription(offer);
+    const collision =
+      entry.makingOffer ||
+      pc.signalingState !== 'stable';
 
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
+    entry.ignoreOffer = !entry.polite && collision;
 
-    return answer;
+    if (entry.ignoreOffer) {
+      console.warn('[IGNORED OFFER]', userId);
+      return null;
+    }
+
+    entry.isSettingRemote = true;
+
+    try {
+      await pc.setRemoteDescription(offer);
+
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      await this.flushIceCandidates(userId);
+
+      return answer;
+
+    } finally {
+      entry.isSettingRemote = false;
+    }
   }
 
+  // =========================
+  // HANDLE ANSWER
+  // =========================
   async handleAnswer(userId: string, answer: RTCSessionDescriptionInit) {
-    const pc = this.peers.get(userId)?.pc;
-    if (!pc) return;
 
-    await pc.setRemoteDescription(answer);
+    const entry = this.peers.get(userId);
+    if (!entry) return;
+
+    const pc = entry.pc;
+
+    // setRemoteDescription(answer) is only valid in 'have-local-offer' state.
+    // Any other state means the answer is a duplicate, arrived too late,
+    // or was echoed back to the sender by the server — drop it silently.
+    if (pc.signalingState !== 'have-local-offer') {
+      console.warn('[ANSWER IGNORED]', userId,
+        `— signalingState was '${pc.signalingState}', expected 'have-local-offer'.`,
+        'Likely a duplicate answer or server echo.');
+      return;
+    }
+
+    try {
+      await pc.setRemoteDescription(answer);
+      await this.flushIceCandidates(userId);
+    } catch (e) {
+      console.warn('[ANSWER APPLY FAILED]', userId, e);
+    }
   }
 
+  // =========================
+  // ICE — buffer if remote not yet set
+  // =========================
   async addIce(userId: string, candidate: RTCIceCandidateInit) {
-    const pc = this.peers.get(userId)?.pc;
-    if (!pc) return;
 
-    await pc.addIceCandidate(candidate);
+    const entry = this.peers.get(userId);
+    if (!entry) return;
+
+    if (!entry.pc.remoteDescription) {
+      entry.iceCandidateBuffer.push(candidate);
+      return;
+    }
+
+    try {
+      await entry.pc.addIceCandidate(candidate);
+    } catch (e) {
+      console.warn('[ICE ERROR]', userId, e);
+    }
+  }
+
+  // =========================
+  // FLUSH BUFFERED ICE CANDIDATES
+  // =========================
+  private async flushIceCandidates(userId: string) {
+
+    const entry = this.peers.get(userId);
+    if (!entry) return;
+
+    for (const candidate of entry.iceCandidateBuffer) {
+      try {
+        await entry.pc.addIceCandidate(candidate);
+      } catch (e) {
+        console.warn('[ICE FLUSH ERROR]', userId, e);
+      }
+    }
+
+    entry.iceCandidateBuffer = [];
+  }
+
+  // =========================
+  // REMOVE
+  // =========================
+  removePeer(userId: string) {
+
+    const entry = this.peers.get(userId);
+    if (!entry) return;
+
+    entry.pc.close();
+    entry.stream?.getTracks().forEach(t => t.stop());
+
+    this.peers.delete(userId);
+
+    this.onPeerLeft?.(userId);
+  }
+
+  cleanupAllPeers() {
+    [...this.peers.keys()].forEach(id => this.removePeer(id));
+  }
+
+  resetRoomState() {
+    this.cleanupAllPeers();
   }
 }

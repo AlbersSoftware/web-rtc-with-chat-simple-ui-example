@@ -2,23 +2,25 @@
 
 <p><strong>Room:</strong> {{ roomId }}</p>
 
+<button mat-raised-button color="warn" (click)="goHome()">
+  Leave Room
+</button>
+
 <div class="room-layout">
 
-  <!-- VIDEO AREA -->
-  <div class="video-section">
+  <!-- LOCAL -->
+  <div class="main-video">
+    <video #localVideo autoplay muted playsinline></video>
+    <span>You ({{ clientId }})</span>
+  </div>
 
-    <!-- LOCAL -->
-    <div class="main-video">
-      <video #localVideo autoplay muted playsinline></video>
-      <span>You ({{ clientId }})</span>
-    </div>
-
-<div class="side-videos">
-
-  <div class="side-video" *ngFor="let v of remoteVideos">
+  <!-- REMOTE -->
+  <div class="side-video"
+       *ngFor="let v of remoteVideos; trackBy: trackByUserId">
 
     <video
       #remoteVideo
+      [attr.data-id]="v.id"
       autoplay
       playsinline>
     </video>
@@ -26,8 +28,6 @@
     <span>{{ v.id }}</span>
 
   </div>
-
-</div>
 
   <!-- CHAT -->
   <div class="chat-container">
